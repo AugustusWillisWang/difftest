@@ -34,9 +34,8 @@
 #define XDMA_C2H_DEVICE "/dev/xdma0_c2h_"
 #define XDMA_H2C_DEVICE "/dev/xdma0_h2c_0"
 
-FpgaXdma::FpgaXdma(const char *workload) {
+FpgaXdma::FpgaXdma() {
   signal(SIGINT, handle_sigint);
-  ddr_load_workload(workload);
 
   for (int i = 0; i < CONFIG_DMA_CHANNELS; i++) {
     char c2h_device[64];
@@ -66,25 +65,21 @@ void FpgaXdma::handle_sigint(int sig) {
 }
 
 // write xdma_bypass memory or xdma_user
-void FpgaXdma::device_write(bool is_bypass, const char *workload, uint64_t addr, uint64_t value) {
+void FpgaXdma::device_write(bool is_bypass, const char *workload, uint64_t addr, uint64_t size) {
   uint64_t pg_size = sysconf(_SC_PAGE_SIZE);
-  uint64_t size = !is_bypass ? 0x1000 : 0x100000;
   uint64_t aligned_size = (size + 0xffful) & ~0xffful;
   uint64_t base = addr & ~0xffful;
   uint32_t offset = addr & 0xfffu;
-  int fd = -1;
 
   if (base % pg_size != 0) {
     printf("base must be a multiple of system page size\n");
     exit(-1);
   }
 
-  if (is_bypass)
-    fd = open(XDMA_BYPASS, O_RDWR | O_SYNC);
-  else
-    fd = open(XDMA_USER, O_RDWR | O_SYNC);
+  int fd = open(XDMA_BYPASS, O_RDWR | O_SYNC);
+
   if (fd < 0) {
-    printf("Failed to open %s\n", is_bypass ? XDMA_BYPASS : XDMA_USER);
+    printf("Failed to open %s\n", XDMA_BYPASS);
     exit(-1);
   }
 
@@ -95,15 +90,9 @@ void FpgaXdma::device_write(bool is_bypass, const char *workload, uint64_t addr,
     exit(-1);
   }
 
-  if (is_bypass) {
-    if (simMemory->get_load_img_size() > aligned_size) {
-      printf("The loaded workload size exceeds the xdma bypass size");
-      exit(-1);
-    }
-    memcpy(static_cast<char *>(m_ptr) + offset, static_cast<const void *>(simMemory->as_ptr()),
-           simMemory->get_load_img_size());
-  } else {
-    ((volatile uint32_t *)m_ptr)[offset >> 2] = value;
+  if (simMemory->as_ptr() == nullptr) {
+    printf("simMemory->as_ptr is nullptr\n");
+    exit(-1);
   }
 
   munmap(m_ptr, aligned_size);

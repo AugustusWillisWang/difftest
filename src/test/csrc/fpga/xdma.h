@@ -45,26 +45,13 @@ public:
 
   bool running = false;
 
-  FpgaXdma(const char *workload);
+  FpgaXdma();
   ~FpgaXdma() {
     stop_thansmit_thread();
   };
 
-  void core_reset() {
-    device_write(false, nullptr, 0x20000, 0x1);
-    device_write(false, nullptr, 0x100000, 0x1);
-    device_write(false, nullptr, 0x10000, 0x8);
-  }
-
-  void core_restart() {
-    device_write(false, nullptr, 0x20000, 0);
-    device_write(false, nullptr, 0x100000, 0);
-  }
-
   void ddr_load_workload(const char *workload) {
-    core_reset();
-    device_write(true, workload, 0, 0);
-    core_restart();
+    device_write(true, workload, 0, 0x100000);
   }
 
   void device_write(bool is_bypass, const char *workload, uint64_t addr, uint64_t value);
