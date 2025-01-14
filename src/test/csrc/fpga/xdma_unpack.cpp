@@ -152,10 +152,26 @@ typedef struct {
 } SquashInstrCommit;
 #pragma pack()
 
+#include <time.h>
+uint64_t perf_run_msec_start;
+uint64_t perf_run_msec;
+void difftest_perfcnt_init() {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  perf_run_msec_start = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+void difftest_perfcnt_finish(uint64_t cycleCnt) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  perf_run_msec = ts.tv_sec * 1000 + ts.tv_nsec / 1000000 - perf_run_msec_start;
+  float speed = (float)cycleCnt / (float)perf_run_msec;
+  printf("\rSimulation speed: %.2f KHz", speed);
+}
+
 void squash_unpackge(uint8_t *packge) {
-#ifdef USE_THREAD_MEMPOOL
+//#ifdef USE_THREAD_MEMPOOL
   packge += sizeof(uint8_t);
-#endif
+//#endif
   // PACKGE HEAD
 #if defined(CPU_XIANGSHAN)
   for (size_t i = 0; i < CONFIG_DIFF_COMMIT_WIDTH; i++) {
@@ -279,8 +295,20 @@ void squash_unpackge(uint8_t *packge) {
     SquashTrapEvent temp;
     memcpy(&temp, packge, sizeof(SquashTrapEvent));
     packge += sizeof(SquashTrapEvent);
+    static bool perfcnt_init = false;
     if (temp.io_valid) {
       v_difftest_TrapEvent(temp.hasTrap, temp.cycleCnt, temp.instrCnt, temp.hasWFI, temp.code, temp.pc, temp.coreid);
+      if (temp.hasTrap) {
+        printf("TrapEvent: hasTrap %d, cycleCnt %ld, instrCnt %ld, hasWFI %d, code %ld, pc %lx, coreid %d\n",
+               temp.hasTrap, temp.cycleCnt, temp.instrCnt, temp.hasWFI, temp.code, temp.pc, temp.coreid);
+        _exit(0);
+      }
+      if (perfcnt_init == false) {
+        difftest_perfcnt_init();
+        perfcnt_init = true;
+      } else if(temp.cycleCnt % 0xFFFFF == 0) {
+        difftest_perfcnt_finish(temp.cycleCnt);
+      }
     }
   }
   for (size_t i = 0; i < CONFIG_DIFF_COMMIT_WIDTH; i++) {

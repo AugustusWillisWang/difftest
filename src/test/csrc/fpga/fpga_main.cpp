@@ -16,13 +16,11 @@
 
 #include "device.h"
 #include "diffstate.h"
-#include "difftest-dpic.h"
 #include "difftest.h"
 #include "flash.h"
 #include "goldenmem.h"
 #include "mpool.h"
 #include "ram.h"
-#include "refproxy.h"
 #include "xdma.h"
 #include <condition_variable>
 #include <getopt.h>
@@ -102,6 +100,7 @@ void fpga_nstep(uint8_t step) {
 void fpga_step() {
   if (difftest_step()) {
     printf("FPGA_FAIL\n");
+    xdma_device->running = false;
     simv_result.store(FPGA_FAIL);
     simv_cv.notify_one();
   }
@@ -116,6 +115,7 @@ void fpga_step() {
       }
       difftest[i]->display_stats();
     }
+    xdma_device->running = false;
     if (trapCode == 0)
       simv_result.store(FPGA_DONE);
     else
@@ -138,6 +138,7 @@ void cpu_endtime_check() {
         difftest[i]->display_stats();
         core_end_info.core_cpi[i] = (double)trap->cycleCnt / (double)trap->instrCnt;
         if (core_end_info.core_trap_num == NUM_CORES) {
+          xdma_device->running = false;
           simv_result.store(FPGA_DONE);
           simv_cv.notify_one();
         }

@@ -16,7 +16,6 @@
 #ifndef __DIFF_UNPACK_H__
 #define __DIFF_UNPACK_H__
 #include "diffstate.h"
-#include "difftest-dpic.h"
 
 void squash_unpackge(uint8_t *packge);
 

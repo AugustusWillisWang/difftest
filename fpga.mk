@@ -8,6 +8,10 @@ FPGA_LDFLAGS   = $(SIM_LDFLAGS) -lpthread -ldl
 DMA_CHANNELS ?= 1
 FPGA_LDFLAGS += -DCONFIG_DMA_CHANNELS=$(DMA_CHANNELS)
 
+ifeq ($(THREAD_MEMPOOL), 1)
+	FPGA_LDFLAGS += -DCONFIG_THREAD_MEMPOOL
+endif
+
 fpga-build: fpga-clean fpga-host
 
 fpga-host:
