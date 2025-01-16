@@ -150,6 +150,33 @@ typedef struct {
   uint8_t coreid;
   uint8_t index;
 } SquashInstrCommit;
+
+typedef struct {
+  uint8_t valid;
+  uint8_t debuga_mode;
+  uint64_t dcsr;
+  uint64_t dpc;
+  uint64_t dscratch0;
+  uint64_t dscratch1;
+  uint8_t coreid;
+} SquashDebugMode;
+
+typedef struct {
+  uint8_t valid;
+  uint64_t tselect;
+  uint64_t tdata;
+  uint64_t tinfo;
+  uint8_t coreid;
+} SquashTriggerCSRState;
+
+typedef struct {
+  uint8_t valid;
+  uint8_t bit_valid;
+  uint8_t criticalError;
+  uint8_t coreid;
+} SquashCriticalErrorEvent;
+
+
 #pragma pack()
 
 #include <time.h>
@@ -219,6 +246,14 @@ void squash_unpackge(uint8_t *packge) {
     v_difftest_ArchEvent(temp.io_interrupt, temp.io_exception, temp.io_exceptionPC, temp.io_exceptionInst,
                          temp.io_hasNMI, temp.io_virtualInterruptIsHvictlInject, temp.io_coreid);
   }
+#ifdef CONFIG_DIFFTEST_CRITICALERROREVENT
+  {
+    SquashCriticalErrorEvent temp;
+    memcpy(&temp, packge, sizeof(SquashCriticalErrorEvent));
+    packge += sizeof(SquashCriticalErrorEvent);
+    v_difftest_CriticalErrorEvent(temp.criticalError, temp.coreid);
+  }
+#endif
   {
     SquashCSRState temp;
     memcpy(&temp, packge, sizeof(SquashCSRState));
@@ -228,12 +263,28 @@ void squash_unpackge(uint8_t *packge) {
                         temp.io_satp, temp.io_mip, temp.io_mie, temp.io_mscratch, temp.io_sscratch, temp.io_mideleg,
                         temp.io_medeleg, temp.io_coreid);
   }
+#ifdef CONFIG_DIFFTEST_DEBUGMODE
+  {
+    SquashDebugMode temp;
+    memcpy(&temp, packge, sizeof(SquashDebugMode));
+    v_difftest_DebugMode(temp.debuga_mode ,temp.dcsr, temp.dpc, temp.dscratch0, temp.dscratch1, temp.coreid);
+  }
+#endif
+#ifdef CONFIG_DIFFTEST_TRIGGERCSRSTATE
+  {
+    SquashTriggerCSRState temp;
+    memcpy(&temp, packge, sizeof(SquashTriggerCSRState));
+    packge += sizeof(SquashTriggerCSRState);
+    v_difftest_TriggerCSRState(temp.tselect, temp.tdata, temp.tinfo, temp.coreid);
+  }
+#endif
   {
     SquashFpCSRState temp;
     memcpy(&temp, packge, sizeof(SquashFpCSRState));
     packge += sizeof(SquashFpCSRState);
     v_difftest_FpCSRState(temp.io_fcsr, temp.io_coreid);
   }
+#ifdef CONFIG_DIFFTEST_HCSRState
   {
     SquashHCSRState temp;
     memcpy(&temp, packge, sizeof(SquashHCSRState));
@@ -243,6 +294,7 @@ void squash_unpackge(uint8_t *packge) {
                          temp.io_vsstatus, temp.io_vstvec, temp.io_vsepc, temp.io_vscause, temp.io_vstval,
                          temp.io_vsatp, temp.io_vsscratch, temp.io_coreid);
   }
+#endif
   {
     SquashLrScEvent temp;
     memcpy(&temp, packge, sizeof(SquashLrScEvent));
