@@ -25,6 +25,7 @@
 #include <condition_variable>
 #include <getopt.h>
 #include <mutex>
+#include <time.h>
 
 enum {
   FPGA_RUN,
@@ -50,7 +51,8 @@ void fpga_step();
 void cpu_endtime_check();
 void set_diff_ref_so(char *s);
 void args_parsing(int argc, char *argv[]);
-
+void fpga_perfcnt_print(uint64_t cycleCnt);
+void fpga_perfcnt_init();
 FpgaXdma *xdma_device = NULL;
 
 int main(int argc, char *argv[]) {
@@ -88,7 +90,8 @@ void fpga_init() {
   init_device();
   init_goldenmem();
   init_nemuproxy(DEFAULT_EMU_RAM_SIZE);
-  xdma_device->ddr_load_workload(work_load);
+  //xdma_device->ddr_load_workload(work_load);
+  fpga_perfcnt_init();
 }
 
 void fpga_nstep(uint8_t step) {
@@ -99,10 +102,16 @@ void fpga_nstep(uint8_t step) {
 
 void fpga_step() {
   if (difftest_step()) {
-    printf("FPGA_FAIL\n");
     xdma_device->running = false;
+    for (int i = 0; i < NUM_CORES; i++) {
+      difftest[i]->display_stats();
+    }
     simv_result.store(FPGA_FAIL);
     simv_cv.notify_one();
+    printf("FPGA_FAIL\n");
+  }
+  if (difftest[0]->get_trap_event()->cycleCnt % 0xFFFFF == 0) {
+    fpga_perfcnt_print(difftest[0]->get_trap_event()->cycleCnt);
   }
   if (difftest_state() != -1) {
     int trapCode = difftest_state();
@@ -145,6 +154,22 @@ void cpu_endtime_check() {
       }
     }
   }
+}
+
+static uint64_t perf_run_msec_start;
+void fpga_perfcnt_init() {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  perf_run_msec_start = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+void fpga_perfcnt_print(uint64_t cycleCnt) {
+  static uint64_t perf_run_msec;
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  perf_run_msec = ts.tv_sec * 1000 + ts.tv_nsec / 1000000 - perf_run_msec_start;
+  float speed = (float)cycleCnt / (float)perf_run_msec;
+  printf("\rFpga speed: %.2f K Cycle", speed);
 }
 
 void args_parsing(int argc, char *argv[]) {
