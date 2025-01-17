@@ -47,7 +47,7 @@ struct core_end_info_t {
 static core_end_info_t core_end_info;
 
 void fpga_init();
-void fpga_step();
+inline void fpga_step();
 void cpu_endtime_check();
 void set_diff_ref_so(char *s);
 void args_parsing(int argc, char *argv[]);
@@ -100,7 +100,7 @@ void fpga_nstep(uint8_t step) {
   }
 }
 
-void fpga_step() {
+inline void fpga_step() {
   if (difftest_step()) {
     xdma_device->running = false;
     for (int i = 0; i < NUM_CORES; i++) {
